@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monaco Editor with Tabs</title>
+  <script src="https://unpkg.com/monaco-editor@0.34.0/min/vs/loader.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .monaco-editor-container {
+      position: relative;
+      height: calc(100vh - 40px);
+    }
+    .credits-overlay {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      color: #888;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .tab {
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+    .tab-closing {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    .tab-opening {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    .context-menu {
+      position: absolute;
+      background: #2d2d2d;
+      border: 1px solid #444;
+      z-index: 1000;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .context-menu-item {
+      padding: 8px 16px;
+      color: white;
+      cursor: pointer;
+    }
+    .context-menu-item:hover {
+      background: #3a3a3a;
+    }
+    .close-btn {
+      margin-left: 8px;
+      font-size: 14px;
+      color: #aaa;
+      cursor: pointer;
+    }
+    .close-btn:hover {
+      color: #fff;
+    }
+  </style>
+</head>
+<body class="bg-gray-900">
+  <div class="flex border-b border-gray-700">
+    <div id="tabs" class="flex overflow-x-auto"></div>
+    <button id="add-tab" class="px-4 py-2 bg-gray-700 text-white hover:bg-gray-600">+</button>
+  </div>
+  <div id="editor" class="monaco-editor-container"></div>
+  <div id="context-menu" class="context-menu hidden">
+    <div class="context-menu-item" onclick="duplicateTab()">Duplicate</div>
+    <div class="context-menu-item" onclick="renameTab()">Rename</div>
+    <div class="context-menu-item" onclick="closeTab()">Close</div>
+  </div>
+  <script>
+    require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.34.0/min/vs' } });
+    require(['vs/editor/editor.main'], function() {
+      let tabs = [{ id: 1, name: 'New Tab 1', content: 'Made By SkorOwner' }];
+      let activeTabId = 1;
+      let editor = null;
+      let contextMenuTabId = null;
+      let tabCounter = 1;
+
+      function initEditor() {
+        const container = document.getElementById('editor');
+        container.innerHTML = '';
+        editor = monaco.editor.create(container, {
+          value: tabs.find(tab => tab.id === activeTabId).content,
+          language: 'javascript',
+          theme: 'vs-dark',
+          automaticLayout: true
+        });
+
+        editor.onDidChangeModelContent(() => {
+          const tab = tabs.find(t => t.id === activeTabId);
+          tab.content = editor.getValue();
+        });
+
+        const credits = document.createElement('div');
+        credits.className = 'credits-overlay';
+        credits.innerHTML = '--Made by SkorOwner<br>--SkorCuter is the best';
+        container.appendChild(credits);
+      }
+
+      function renderTabs() {
+        const tabsContainer = document.getElementById('tabs');
+        tabsContainer.innerHTML = '';
+        tabs.forEach(tab => {
+          const tabElement = document.createElement('div');
+          tabElement.className = `tab px-4 py-2 bg-gray-800 text-white cursor-pointer border-r border-gray-700 ${tab.id === activeTabId ? 'bg-gray-600' : ''}`;
+          const nameSpan = document.createElement('span');
+          nameSpan.innerText = tab.name;
+          tabElement.appendChild(nameSpan);
+          const closeBtn = document.createElement('span');
+          closeBtn.innerText = '×';
+          closeBtn.className = 'close-btn';
+          closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            contextMenuTabId = tab.id;
+            closeTab();
+          };
+          tabElement.appendChild(closeBtn);
+          tabElement.onclick = () => {
+            activeTabId = tab.id;
+            editor.setValue(tabs.find(t => t.id === activeTabId).content);
+            renderTabs();
+          };
+          tabElement.oncontextmenu = (e) => {
+            e.preventDefault();
+            contextMenuTabId = tab.id;
+            const menu = document.getElementById('context-menu');
+            menu.style.top = `${e.pageY}px`;
+            menu.style.left = `${e.pageX}px`;
+            menu.classList.remove('hidden');
+          };
+          tabsContainer.appendChild(tabElement);
+        });
+      }
+
+      function addTab() {
+        tabCounter++;
+        const newId = Math.max(...tabs.map(t => t.id), 0) + 1;
+        tabs.push({ id: newId, name: `New Tab ${tabCounter}`, content: 'Made By SkorOwner' });
+        activeTabId = newId;
+        const tabElement = document.createElement('div');
+        tabElement.className = 'tab tab-opening';
+        setTimeout(() => {
+          tabElement.className = 'tab';
+          renderTabs();
+        }, 300);
+        editor.setValue(tabs.find(t => t.id === activeTabId).content);
+        renderTabs();
+      }
+
+      window.closeTab = function() {
+        const tabIndex = tabs.findIndex(t => t.id === contextMenuTabId);
+        const tabElement = document.querySelector(`#tabs > div:nth-child(${tabIndex + 1})`);
+        if (tabElement) {
+          tabElement.className = 'tab tab-closing';
+        }
+        setTimeout(() => {
+          tabs = tabs.filter(tab => tab.id !== contextMenuTabId);
+          if (activeTabId === contextMenuTabId) {
+            activeTabId = tabs.length > 0 ? tabs[0].id : null;
+          }
+          if (activeTabId) {
+            editor.setValue(tabs.find(t => t.id === activeTabId).content);
+          } else {
+            editor.setValue('');
+          }
+          renderTabs();
+          document.getElementById('context-menu').classList.add('hidden');
+        }, 300);
+      };
+
+      window.duplicateTab = function() {
+        const tabToDuplicate = tabs.find(tab => tab.id === contextMenuTabId);
+        tabCounter++;
+        const newId = Math.max(...tabs.map(t => t.id), 0) + 1;
+        tabs.push({ id: newId, name: `New Tab ${tabCounter}`, content: tabToDuplicate.content });
+        activeTabId = newId;
+        const tabElement = document.createElement('div');
+        tabElement.className = 'tab tab-opening';
+        setTimeout(() => {
+          tabElement.className = 'tab';
+          renderTabs();
+        }, 300);
+        editor.setValue(tabs.find(t => t.id === activeTabId).content);
+        renderTabs();
+        document.getElementById('context-menu').classList.add('hidden');
+      };
+
+      window.renameTab = function() {
+        const newName = prompt('Enter new tab name:', tabs.find(tab => tab.id === contextMenuTabId).name);
+        if (newName) {
+          tabs = tabs.map(tab => tab.id === contextMenuTabId ? { ...tab, name: newName } : tab);
+          renderTabs();
+        }
+        document.getElementById('context-menu').classList.add('hidden');
+      };
+
+      document.getElementById('add-tab').onclick = addTab;
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#context-menu')) {
+          document.getElementById('context-menu').classList.add('hidden');
+        }
+      });
+
+      initEditor();
+      renderTabs();
+    });
+  </script>
+</body>
+</html>
