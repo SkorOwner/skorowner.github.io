@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SkorMonaco</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Orbitron', sans-serif;
+      color: #ffffff;
+      overflow: hidden;
+      position: relative;
+      width: 1920px; /* 1080p width */
+      height: 1080px; /* 1080p height */
+      margin: 0 auto; /* Center content for 1080p */
+      background-color: #0a0a0a; /* Varsayılan nötr arka plan */
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #1a1a1a;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      border-bottom: 2px solid #333333;
+    }
+
+    .tab {
+      background: #1a1a1a;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      margin-right: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: #666666;
+      transform: scaleX(0);
+      transform-origin: bottom right;
+      transition: transform 0.3s ease;
+    }
+
+    .tab:hover::after {
+      transform: scaleX(1);
+      transform-origin: bottom left;
+    }
+
+    .tab:hover {
+      background: #2a2a2a;
+      transform: translateY(-3px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .tab.active {
+      background: #333333;
+      color: #ffffff;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+    }
+
+    .tab.active::after {
+      transform: scaleX(1);
+      background: #999999;
+    }
+
+    .tab-close {
+      color: #ff4d4d;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .tab-close:hover {
+      color: #ff0000;
+      transform: scale(1.3);
+    }
+
+    .add-tab {
+      background: #1a1a1a;
+      color: #ffffff;
+      width: 40px;
+      height: 40px;
+      font-size: 24px;
+      text-align: center;
+      line-height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      border: 2px solid #666666;
+    }
+
+    .add-tab:hover {
+      background: #2a2a2a;
+      transform: scale(1.2);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+      border-color: #999999;
+    }
+
+    .editor-container {
+      height: calc(100vh - 60px);
+      width: 100%;
+      background: transparent;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Monaco Editor Styling */
+    .monaco-editor {
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1e1e1e !important;
+    }
+
+    .monaco-editor .monaco-editor-background {
+      background: #1e1e1e !important;
+    }
+
+    .monaco-editor .margin {
+      background: #1e1e1e !important;
+    }
+
+    .monaco-editor .view-line {
+      color: #ffffff !important;
+    }
+
+    /* Custom Scrollbar Styling for Monaco Editor */
+    .monaco-editor .monaco-scrollable-element {
+      scrollbar-width: thin;
+      scrollbar-color: #4a4a4a #1e1e1e;
+    }
+
+    .monaco-editor .monaco-scrollable-element::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .monaco-editor .monaco-scrollable-element::-webkit-scrollbar-track {
+      background: #1e1e1e;
+      border-radius: 8px;
+    }
+
+    .monaco-editor .monaco-scrollable-element::-webkit-scrollbar-thumb {
+      background: #4a4a4a;
+      border-radius: 8px;
+    }
+
+    .monaco-editor .monaco-scrollable-element::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+
+    /* Rename input field */
+    .tab-input {
+      background: #1a1a1a;
+      color: #ffffff;
+      border: 2px solid #666666;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 16px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      outline: none;
+      width: 120px;
+      transition: all 0.3s ease;
+    }
+
+    .tab-input:focus {
+      border-color: #999999;
+      box-shadow: 0 0 12px rgba(153, 153, 153, 0.3);
+    }
+
+    /* Animations */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab-id="1" onclick="switchTab(1)" ondblclick="renameTab(this)">
+      New Tab 1 <span class="tab-close" onclick="closeTab(this)">×</span>
+    </div>
+    <div class="add-tab" onclick="addTab()">+</div>
+  </div>
+
+  <div id="editor-container-1" class="editor-container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.min.js"></script>
+  <script>
+    let tabCount = 1;
+    let currentTab = 1;
+    const editors = {};
+
+    // Load Monaco Editor
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+      try {
+        editors[1] = monaco.editor.create(document.getElementById('editor-container-1'), {
+          value: '// Welcome To SkorMonaco!',
+          language: 'javascript',
+          theme: 'vs-dark',
+          automaticLayout: true,
+          fontSize: 16,
+          lineHeight: 24,
+          fontFamily: 'Fira Code, monospace',
+          minimap: { enabled: false },
+          scrollbar: {
+            vertical: 'visible',
+            horizontal: 'auto',
+            verticalScrollbarSize: 8,
+            alwaysConsumeMouseWheel: false
+          },
+          scrollBeyondLastLine: false,
+          roundedSelection: true,
+          cursorBlinking: 'smooth',
+          cursorStyle: 'line',
+          renderLineHighlight: 'all',
+          wordWrap: 'on',
+        });
+      } catch (error) {
+        console.error('Failed to initialize Monaco Editor:', error);
+        alert('Error loading the editor. Please check the console for details.');
+      }
+    }, function (error) {
+      console.error('Failed to load Monaco Editor:', error);
+      alert('Error loading Monaco Editor. Please check your internet connection or the CDN.');
+    });
+
+    function addTab() {
+      tabCount++;
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.dataset.tabId = tabCount;
+      tab.innerHTML = `New Tab ${tabCount} <span class="tab-close" onclick="closeTab(this)">×</span>`;
+      tab.onclick = () => switchTab(tabCount);
+      tab.ondblclick = () => renameTab(tab);
+      tab.style.animation = 'slideUp 0.4s ease';
+      document.getElementById('tabs').insertBefore(tab, document.querySelector('.add-tab'));
+
+      const editorContainer = document.createElement('div');
+      editorContainer.id = `editor-container-${tabCount}`;
+      editorContainer.className = 'editor-container';
+      editorContainer.style.display = 'none';
+      document.body.appendChild(editorContainer);
+
+      require(['vs/editor/editor.main'], function () {
+        try {
+          editors[tabCount] = monaco.editor.create(document.getElementById(`editor-container-${tabCount}`), {
+            value: '// SkorMonaco New Tab !',
+            language: 'javascript',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            fontSize: 16,
+            lineHeight: 24,
+            fontFamily: 'Fira Code, monospace',
+            minimap: { enabled: false },
+            scrollbar: {
+              vertical: 'visible',
+              horizontal: 'auto',
+              verticalScrollbarSize: 8,
+              alwaysConsumeMouseWheel: false
+            },
+            scrollBeyondLastLine: false,
+            roundedSelection: true,
+            cursorBlinking: 'smooth',
+            cursorStyle: 'line',
+            renderLineHighlight: 'all',
+            wordWrap: 'on',
+          });
+        } catch (error) {
+          console.error(`Failed to initialize editor for tab ${tabCount}:`, error);
+          alert('Error creating new editor tab. Please check the console.');
+        }
+      }, function (error) {
+        console.error('Failed to load Monaco Editor for new tab:', error);
+        alert('Error loading editor for new tab. Please check your internet connection.');
+      });
+
+      switchTab(tabCount);
+    }
+
+    function renameTab(tab) {
+      const nameSpan = tab.childNodes[0];
+      const currentName = nameSpan.textContent.trim();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'tab-input';
+      input.value = currentName;
+
+      tab.innerHTML = '';
+      tab.appendChild(input);
+      tab.appendChild(document.createElement('span')).className = 'tab-close';
+      tab.querySelector('.tab-close').textContent = '×';
+      tab.querySelector('.tab-close').onclick = () => closeTab(tab.querySelector('.tab-close'));
+
+      input.focus();
+      input.select();
+
+      const submit = () => {
+        let newName = input.value.trim();
+        if (!newName) {
+          newName = currentName;
+        }
+        tab.innerHTML = `${newName} <span class="tab-close" onclick="closeTab(this)">×</span>`;
+        tab.onclick = () => switchTab(parseInt(tab.dataset.tabId));
+        tab.ondblclick = () => renameTab(tab);
+      };
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          submit();
+        }
+      });
+
+      input.addEventListener('blur', submit);
+    }
+
+    function closeTab(el) {
+      const tab = el.parentElement;
+      const tabId = parseInt(tab.dataset.tabId);
+
+      if (document.querySelectorAll('.tab').length === 1) return;
+
+      tab.style.transition = 'all 0.4s ease';
+      tab.style.opacity = '0';
+      tab.style.transform = 'scale(0.9)';
+      setTimeout(() => {
+        tab.remove();
+        document.getElementById(`editor-container-${tabId}`).remove();
+        delete editors[tabId];
+
+        if (currentTab === tabId) {
+          const remainingTabs = document.querySelectorAll('.tab');
+          const newTabId = parseInt(remainingTabs[0].dataset.tabId);
+          switchTab(newTabId);
+        }
+      }, 400);
+    }
+
+    function switchTab(tabId) {
+      currentTab = tabId;
+
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.toggle('active', parseInt(tab.dataset.tabId) === tabId);
+      });
+
+      Object.keys(editors).forEach(id => {
+        document.getElementById(`editor-container-${id}`).style.display = parseInt(id) === tabId ? 'block' : 'none';
+      });
+    }
+
+    function GetText() {
+      return editors[currentTab]?.getValue() || '';
+    }
+  </script>
+</body>
+</html>
